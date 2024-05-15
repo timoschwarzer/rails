@@ -424,13 +424,42 @@ module ActionDispatch # :nodoc:
 
     CONTENT_TYPE_PARSER = /
       \A
-      (?<mime_type>[^;\s]+\s*(?:;\s*(?:(?!charset)[^;\s])+)*)?
-      (?:;\s*charset=(?<quote>"?)(?<charset>[^;\s]+)\k<quote>)?
-    /x # :nodoc:
+      (?<mime_type>[^\s;]*)(;(?<parameters>.+))?
+      /x # :nodoc:
+    CONTENT_TYPE_PARAMETER_PARSER = /
+      \A
+      \s*(?<name>[^\s()<>@,;:\\"\/\[\]?.=]+)=("(?<quoted_value>[^"]*)"|(?<value>[^\s()<>@,;:\\"\/\[\]?.=]+))
+      /x # :nodoc:
 
     def parse_content_type(content_type)
       if content_type && match = CONTENT_TYPE_PARSER.match(content_type)
-        ContentTypeHeader.new(match[:mime_type], match[:charset])
+        charset = nil
+        media_type = match[:mime_type].blank? ? nil : match[:mime_type]
+
+        if match[:parameters]
+          potentially_partial_parameter_string = nil
+          match[:parameters].split(";").each do |part|
+            if potentially_partial_parameter_string
+              potentially_partial_parameter_string += ";" + part
+            else
+              potentially_partial_parameter_string = part
+            end
+
+            if parameter = CONTENT_TYPE_PARAMETER_PARSER.match(potentially_partial_parameter_string)
+              value = parameter[:value] || parameter[:quoted_value]
+
+              if parameter[:name] == "charset"
+                charset = value
+              else
+                media_type += ";" + potentially_partial_parameter_string
+              end
+
+              potentially_partial_parameter_string = nil
+            end
+          end
+        end
+
+        ContentTypeHeader.new(media_type, charset)
       else
         NullContentTypeHeader
       end

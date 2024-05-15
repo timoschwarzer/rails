@@ -52,7 +52,7 @@ class OldContentTypeController < ActionController::Base
   end
 
   def render_content_type_with_charset
-    response.content_type = "text/html; fragment; charset=utf-16"
+    response.content_type = "text/html; somekey=somevalue; charset=utf-16"
     render body: "hello world!"
   end
 end
@@ -138,7 +138,7 @@ class ContentTypeTest < ActionController::TestCase
 
   def test_content_type_with_charset
     get :render_content_type_with_charset
-    assert_equal "text/html; fragment", @response.media_type
+    assert_equal "text/html; somekey=somevalue", @response.media_type
     assert_equal "utf-16", @response.charset
   end
 
